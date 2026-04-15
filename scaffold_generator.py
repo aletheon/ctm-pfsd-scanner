@@ -4,13 +4,17 @@ MVP Distiller Adapter (ScaffoldGenerator)
 Scans Python source via AST and produces a DistilledGraph scaffold.
 
 Output contract:
-  - schema_version: "1.1"
+  - schema_version: "2.0"
   - is_valid_ctm_graph: always False
   - All nodes marked is_governance_gap: True, with typed gaps[] registry
   - R nodes have rule_type: AUTO_INFERRED
   - Edge types: "P_CONTAINS_P", "P_CONTAINS_R", "R_TARGETS_S" — never "P→R→S"
   - Top-level: paths_represented, future_edges_supported, forum_notice
   - summary.gaps_total derived from typed gaps registry
+  - actor_graph: {"nodes": [...]} — one a_root node + one per module P node
+  - P nodes carry actor_scope: ["a_<module>"] — not null
+  - ACTOR_SCOPE BLOCKING gap replaced with ACTOR_SCOPE_INFERRED ADVISORY
+  - POLICY_OWNERSHIP BLOCKING gap remains on all P nodes
 
 §48 boundary: imports only stdlib — no runtime engine classes.
 Zone 3 purity: scan() returns nodes + edges only.
@@ -38,6 +42,11 @@ class ScaffoldGenerator:
 
         root_slug = _slugify(project_name)
 
+        # ── Actor graph — root node ────────────────────────────
+        actor_nodes = [
+            {"id": "a_root", "label": project_name, "parent": None}
+        ]
+
         # ── Root P node ───────────────────────────────────────
         nodes.append(_make_node(
             id_      = root_id,
@@ -46,7 +55,7 @@ class ScaffoldGenerator:
             meta     = {
                 "is_root":              True,
                 "is_virtual_root":      True,
-                "actor_scope":          None,
+                "actor_scope":          ["a_root"],
                 "file":                 None,
                 "module_name":          project_name,
                 "is_inferred_boundary": True,
@@ -54,7 +63,9 @@ class ScaffoldGenerator:
                 "confidence":           0.7,
             },
             gap_reason = (
-                "Root policy authority and actor_scope require human authorship. "
+                "Root policy authority requires human authorship. "
+                "Actor hierarchy is inferred from project structure only — "
+                "file boundary does not equal policy boundary. "
                 "This root node is virtual — it does not imply a real unified "
                 "governance authority. Multi-domain systems may have multiple "
                 "top-level policies or no single root."
@@ -63,9 +74,13 @@ class ScaffoldGenerator:
                 {"gap_id": f"policy_ownership_{root_slug}", "category": "POLICY_OWNERSHIP",
                  "severity": "BLOCKING", "layer": "WHY",
                  "description": "Root policy authority requires human authorship"},
-                {"gap_id": f"actor_scope_{root_slug}", "category": "ACTOR_SCOPE",
-                 "severity": "BLOCKING", "layer": "WHY",
-                 "description": "actor_scope requires human authorship"},
+                {"gap_id": f"actor_scope_inferred_{root_slug}", "category": "ACTOR_SCOPE_INFERRED",
+                 "severity": "ADVISORY", "layer": "WHY",
+                 "description": (
+                     "Actor hierarchy inferred from file boundaries only. "
+                     "File boundary does not equal policy boundary. Human authorship "
+                     "required to confirm or restructure this actor hierarchy."
+                 )},
             ],
         ))
 
@@ -82,11 +97,16 @@ class ScaffoldGenerator:
             if filename.startswith("test_") or filename == "conftest.py":
                 continue
 
-            module_name = filename.replace(".py", "")
-            p_id        = _node_id("P", module_name)
-            p_label     = _to_pascal(module_name) + "Policy"
+            module_name     = filename.replace(".py", "")
+            p_id            = _node_id("P", module_name)
+            p_label         = _to_pascal(module_name) + "Policy"
+            p_slug          = _slugify(module_name)
+            module_actor_id = "a_" + p_slug
 
-            p_slug = _slugify(module_name)
+            # ── Actor graph — module node ──────────────────────
+            actor_nodes.append(
+                {"id": module_actor_id, "label": module_name, "parent": "a_root"}
+            )
 
             # ── Module P node ──────────────────────────────────
             nodes.append(_make_node(
@@ -98,21 +118,26 @@ class ScaffoldGenerator:
                     "is_virtual_root":      False,
                     "file":                 path,
                     "module_name":          module_name,
-                    "actor_scope":          None,
+                    "actor_scope":          [module_actor_id],
                     "is_inferred_boundary": True,
                     "inference_source":     "file_boundary",
                     "confidence":           0.6,
                 },
                 gap_reason = (
-                    "actor_scope and policy authority require human authorship. "
+                    "Policy authority requires human authorship. "
+                    "Actor hierarchy is inferred from file boundaries only — "
                     "IMPORTANT: file boundary ≠ policy boundary. One file may map "
                     "to multiple policies; multiple files may share one policy. "
                     "Human governance authorship decides the real policy scope."
                 ),
                 gaps = [
-                    {"gap_id": f"actor_scope_{p_slug}", "category": "ACTOR_SCOPE",
-                     "severity": "BLOCKING", "layer": "WHY",
-                     "description": "actor_scope requires human authorship"},
+                    {"gap_id": f"actor_scope_inferred_{p_slug}", "category": "ACTOR_SCOPE_INFERRED",
+                     "severity": "ADVISORY", "layer": "WHY",
+                     "description": (
+                         "Actor hierarchy inferred from file boundaries only. "
+                         "File boundary does not equal policy boundary. Human authorship "
+                         "required to confirm or restructure this actor hierarchy."
+                     )},
                     {"gap_id": f"policy_ownership_{p_slug}", "category": "POLICY_OWNERSHIP",
                      "severity": "BLOCKING", "layer": "WHY",
                      "description": "Policy authority requires human authorship"},
@@ -206,7 +231,7 @@ class ScaffoldGenerator:
                 services_count += 1
 
         return {
-            "schema_version":         "1.1",
+            "schema_version":         "2.0",
             "is_valid_ctm_graph":     False,
             "disclaimer":             DISCLAIMER,
             "project_name":           project_name,
@@ -229,6 +254,7 @@ class ScaffoldGenerator:
             },
             "nodes":         nodes,
             "edges":         edges,
+            "actor_graph":   {"nodes": actor_nodes},
         }
 
 

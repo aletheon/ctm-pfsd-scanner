@@ -9,6 +9,8 @@ Output contract:
   - No rule keyword as filled content
   - No actor names or condition values as proposals
   - All governance placeholders are empty blocks
+  - v2.0: actors {} block populated with inferred IDs from actor_graph,
+    marked ACTOR_SCOPE_INFERRED — ADVISORY
 
 §48 boundary: imports only stdlib.
 """
@@ -35,6 +37,16 @@ _ACTORS_BLOCK = """\
 # GOVERNANCE GAP: ACTOR_SCOPE — BLOCKING — layer: WHY
 # DIAGNOSTIC: Actor hierarchy cannot be derived from source code.{actor_diagnostics}
 actors {{ }}
+
+"""
+
+_ACTORS_BLOCK_V2 = """\
+# GOVERNANCE GAP: ACTOR_SCOPE_INFERRED — ADVISORY — layer: WHY
+# DIAGNOSTIC: Actor hierarchy inferred from file boundaries only.
+# File boundary does not equal policy boundary. Human authorship
+# required to confirm or restructure this actor hierarchy.{actor_diagnostics}
+actors {{
+{actor_ids}}}
 
 """
 
@@ -135,11 +147,21 @@ class PolicyExporter:
             namespace=_slugify_namespace(project_name)
         ))
 
-        # Actors block — use root node diagnostics for context
+        # Actors block
         root_extra_diags = root.get("diagnostics", []) if root else []
-        out.append(_ACTORS_BLOCK.format(
-            actor_diagnostics=_format_diagnostics(root_extra_diags)
-        ))
+        actor_graph = graph.get("actor_graph")
+        if schema_version == "2.0" and actor_graph:
+            actor_id_lines = "".join(
+                f"  {an['id']}\n" for an in actor_graph.get("nodes", [])
+            )
+            out.append(_ACTORS_BLOCK_V2.format(
+                actor_diagnostics = _format_diagnostics(root_extra_diags),
+                actor_ids         = actor_id_lines,
+            ))
+        else:
+            out.append(_ACTORS_BLOCK.format(
+                actor_diagnostics=_format_diagnostics(root_extra_diags)
+            ))
 
         # One policy block per module P node
         for p_node in module_p_nodes:

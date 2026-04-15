@@ -48,6 +48,16 @@ PIC_TYPE_PROPOSAL              = "PROPOSAL_SUBMITTED"
 PIC_TYPE_REJECTION             = "PROPOSAL_REJECTED"
 COMPILER_KNOWN_PATCH_PATHS     = ["service_call_ratio_threshold"]
 
+# ── PolicyScript Compiler ─────────────────────────────────────────────────
+PIC_CHAIN_PATH      = "/tmp/ctm_pic_chain.jsonl"
+RESIDUAL_STORE_PATH = "/tmp/ctm_residual_store.jsonl"
+BDH_STORE_PATH      = "/tmp/ctm_bdh_pathways.json"
+CODEBASE_PATH       = __import__("os").environ.get(
+    "CODEBASE_PATH", "/tmp/ctm_governed_codebase"
+)
+RUNTIME_CLOCK_PATH  = "/tmp/ctm_runtime_clock.json"
+MEMORY_GRAPH_PATH   = "/tmp/ctm_memory_graph.json"
+
 # ── LLM Pattern Reports (Phase 2 Stage 4) ─────────────────────────────────
 LLM_PROVIDER            = "mock"              # "mock" | "anthropic"
 LLM_ANTHROPIC_MODEL     = "claude-sonnet-4-6"

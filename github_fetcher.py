@@ -14,6 +14,7 @@ Limits:
 from __future__ import annotations
 
 import json
+import os
 import re
 import urllib.request
 import urllib.error
@@ -62,13 +63,14 @@ def fetch_file_list(owner: str, repo: str, ref: str,
         f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
         f"?ref={ref}"
     )
-    req = urllib.request.Request(
-        api_url,
-        headers={
-            "Accept":     "application/vnd.github.v3+json",
-            "User-Agent": "ctm-pfsd-scanner/1.1",
-        }
-    )
+    token = os.environ.get("GITHUB_TOKEN")
+    headers = {
+        "Accept":     "application/vnd.github.v3+json",
+        "User-Agent": "ctm-pfsd-scanner/1.1",
+    }
+    if token:
+        headers["Authorization"] = f"token {token}"
+    req = urllib.request.Request(api_url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=FILE_TIMEOUT) as resp:
             entries = json.loads(resp.read())
@@ -109,10 +111,11 @@ def fetch_file_content(download_url: str) -> Optional[str]:
     if not download_url:
         return None
     try:
-        req = urllib.request.Request(
-            download_url,
-            headers={"User-Agent": "ctm-pfsd-scanner/1.1"}
-        )
+        token = os.environ.get("GITHUB_TOKEN")
+        headers = {"User-Agent": "ctm-pfsd-scanner/1.1"}
+        if token:
+            headers["Authorization"] = f"token {token}"
+        req = urllib.request.Request(download_url, headers=headers)
         with urllib.request.urlopen(req, timeout=FILE_TIMEOUT) as resp:
             return resp.read().decode("utf-8", errors="ignore")
     except Exception:

@@ -33,6 +33,12 @@ _EXPLANATIONS: dict[str, tuple[str, float]] = {
         "which requires human authorship.",
         0.92,
     ),
+    "ACTOR_SCOPE_INFERRED": (
+        "Actor hierarchy was inferred from file boundaries only. "
+        "File boundary does not equal policy boundary. Human authorship "
+        "required to confirm or restructure this actor hierarchy.",
+        0.70,
+    ),
     "POLICY_OWNERSHIP": (
         "Policy authority cannot be derived from file structure or module names. "
         "At genesis, the system creates the P → M binding and the policy creator "
@@ -86,8 +92,9 @@ _EXPLANATIONS: dict[str, tuple[str, float]] = {
 }
 
 _LAYER_MAP: dict[str, str] = {
-    "ACTOR_SCOPE":        "WHY",
-    "POLICY_OWNERSHIP":   "WHY",
+    "ACTOR_SCOPE":          "WHY",
+    "ACTOR_SCOPE_INFERRED": "WHY",
+    "POLICY_OWNERSHIP":     "WHY",
     "FORUM_ASSIGNMENT":   "WHY",
     "MANAGER_ASSIGNMENT": "WHY",
     "RULE_CONDITION":     "WHAT",
